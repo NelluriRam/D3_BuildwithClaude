@@ -6,6 +6,7 @@
 
 import * as gateway from '../gateway/gateway.js';
 import { REMEDIATION_TOOLS } from '../sources/index.js';
+import { runGroundingCheck } from '../gateway/groundingCheck.js';
 
 const MAX_ITERATIONS = 8;
 
@@ -116,6 +117,18 @@ export async function runRemediation({ incidentId, sreSessionId, findings }) {
     return { sessionId: session.id, status: 'paused', reason: blockedReason, incidentId };
   }
 
+  let grounding = null;
+  if (report) {
+    const reportText = `Action taken: ${report.action_taken}\nOutcome: ${report.outcome}\nNotes: ${report.notes}`;
+    try {
+      grounding = await runGroundingCheck(session.id, reportText);
+    } catch (err) {
+      // Grounding is a bonus signal, not core remediation -- a failure here
+      // (e.g. transient API error) must never block reporting the outcome.
+      grounding = { computed: false, reason: `grounding check error: ${String(err.message || err)}` };
+    }
+  }
+
   gateway.completeSession(session.id);
-  return { sessionId: session.id, status: 'completed', report, incidentId };
+  return { sessionId: session.id, status: 'completed', report, incidentId, grounding };
 }

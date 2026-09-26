@@ -66,7 +66,7 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
   }
 
   if (!data) return null;
-  const { session, calls, flags } = data;
+  const { session, calls, flags, grounding } = data;
 
   async function handleKill() {
     setKilling(true);
@@ -137,6 +137,38 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
                   signal {f.signal_strength}
                 </span>{' '}
                 {f.detail}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {grounding && (
+        <div className="grounding-block">
+          <div className="call-detail-label">
+            Report grounding{' '}
+            <span
+              className="badge badge-signal"
+              title={`${grounding.claims.filter((c) => c.grounded).length} of ${grounding.claims.length} claims matched to logged evidence → ${grounding.confidence}`}
+            >
+              confidence {grounding.confidence}
+            </span>
+          </div>
+          <pre className="log-block">{grounding.reportText}</pre>
+          <ul className="claims-list">
+            {grounding.claims.map((c) => (
+              <li key={c.id} className={c.grounded ? '' : 'is-flagged'}>
+                <span className={`badge ${c.grounded ? 'badge-grounded' : 'badge-flagged'}`}>
+                  {c.grounded ? 'Grounded' : 'Unsupported'}
+                </span>{' '}
+                {c.claim}
+                {!c.grounded && c.unmatched_values.length > 0 && (
+                  <span className="text-faint">
+                    {' '}
+                    (unmatched: {c.unmatched_values.join(', ')}
+                    {c.cross_session_leakage ? ' — matches another session’s evidence instead' : ''})
+                  </span>
+                )}
               </li>
             ))}
           </ul>

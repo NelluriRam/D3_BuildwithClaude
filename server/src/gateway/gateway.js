@@ -57,6 +57,7 @@ const stmts = {
   `),
   auditFlagsForSession: db.prepare(`SELECT call_id_ref, flag_type, signal_strength FROM flags WHERE session_id = ?`),
   auditFlagsAll: db.prepare(`SELECT call_id_ref, flag_type, signal_strength FROM flags`),
+  listClaims: db.prepare(`SELECT * FROM claims WHERE session_id = ? ORDER BY id ASC`),
   topFlagPerSession: db.prepare(`
     SELECT session_id, flag_type, MAX(signal_strength) as signal_strength
     FROM flags GROUP BY session_id
@@ -201,9 +202,9 @@ export function callTool(sessionId, source, toolName, args) {
 
 /**
  * @param {string} sessionId
- * @param {{system?: string, messages: any[], tools?: any[]}} req
+ * @param {{system?: string, messages: any[], tools?: any[], tool_choice?: any}} req
  */
-export async function callClaude(sessionId, { system, messages, tools }) {
+export async function callClaude(sessionId, { system, messages, tools, tool_choice }) {
   const session = getSession(sessionId);
   if (!session) throw new Error(`Unknown session: ${sessionId}`);
 
@@ -217,6 +218,7 @@ export async function callClaude(sessionId, { system, messages, tools }) {
     max_tokens: 1024,
     system,
     messages,
+    tool_choice,
     tools,
   });
 
@@ -274,13 +276,37 @@ function parseFlag(row) {
   return { ...row, signal_strength_detail };
 }
 
+function parseClaim(row) {
+  let cited_values = [];
+  let unmatched_values = [];
+  try { cited_values = JSON.parse(row.cited_values_json); } catch { /* ignore */ }
+  try { unmatched_values = row.unmatched_values_json ? JSON.parse(row.unmatched_values_json) : []; } catch { /* ignore */ }
+  return {
+    id: row.id,
+    claim: row.claim_text,
+    cited_values,
+    grounded: !!row.grounded,
+    unmatched_values,
+    cross_session_leakage: !!row.cross_session_leakage,
+  };
+}
+
 export function getSessionDetail(sessionId) {
   const session = getSession(sessionId);
   if (!session) return null;
+  const claims = stmts.listClaims.all(sessionId).map(parseClaim);
   return {
     session: { ...session, needs_review: !!session.needs_review },
     calls: stmts.listAllCalls.all(sessionId),
     flags: stmts.listFlags.all(sessionId).map(parseFlag),
+    grounding: session.grounding_computed_at
+      ? {
+          confidence: session.grounding_confidence,
+          reportText: session.grounding_report_text,
+          computedAt: session.grounding_computed_at,
+          claims,
+        }
+      : null,
   };
 }
 

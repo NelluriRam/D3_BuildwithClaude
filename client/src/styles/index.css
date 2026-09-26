@@ -308,7 +308,8 @@ button {
 .badge-status-resolved,
 .badge-status-Running,
 .badge-session-completed,
-.badge-investigation-completed {
+.badge-investigation-completed,
+.badge-grounded {
   color: var(--success);
   border-color: var(--success-border);
   background: var(--success-bg);
@@ -552,6 +553,26 @@ button {
 
 .flags-block li {
   margin-bottom: 4px;
+}
+
+.grounding-block {
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.claims-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.claims-list li {
+  margin-bottom: 6px;
+  padding-left: 0;
+}
+
+.claims-list li.is-flagged {
+  color: var(--text);
 }
 
 .call-detail-label {
