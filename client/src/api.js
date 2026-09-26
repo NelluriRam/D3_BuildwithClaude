@@ -30,5 +30,6 @@ export const api = {
   costSaved: () => req('/metrics/cost-saved'),
   timeToDetect: () => req('/metrics/time-to-detect'),
   unsupportedClaims: () => req('/metrics/unsupported-claims'),
+  mostRecentCatch: () => req('/metrics/most-recent-catch'),
   exportAuditLogUrl: (sessionId) => `${BASE}/export/audit-log${sessionId ? `?session_id=${sessionId}` : ''}`,
 };

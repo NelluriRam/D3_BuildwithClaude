@@ -478,4 +478,43 @@ export function getUnsupportedClaimsCount() {
   return unsupportedClaimsTodayStmt.get(todayStartIso()).n;
 }
 
+const unsupportedClaimsForSessionStmt = db.prepare(
+  `SELECT COUNT(*) as n FROM claims WHERE session_id = ? AND grounded = 0`
+);
+
+/**
+ * The most recent session LoopSentinel ever paused for a real loop or
+ * budget flag, whenever it happened (not scoped to "today" like the
+ * metrics above) -- purely a read composition over rows already produced
+ * by the existing detection/cost/grounding logic (computeCostAvoidedUsd is
+ * the same function getCostSavedStats uses, just applied to one row).
+ * Used so the dashboard always has a concrete example to show on a quiet
+ * first load rather than an empty state. Returns null if this server run
+ * has never paused a session for a real flag yet.
+ */
+export function getMostRecentCatch() {
+  const timing = getFlaggedSessionsTiming()
+    .filter((r) => r.first_call_at)
+    .sort((a, b) => (a.paused_at < b.paused_at ? 1 : -1));
+  const row = timing[0];
+  if (!row) return null;
+
+  const topFlag = stmts.topFlagPerSession.all().find((f) => f.session_id === row.id) ?? null;
+  const costAvoided = computeCostAvoidedUsd({
+    totalCostUsd: row.total_cost_usd,
+    firstCallAt: row.first_call_at,
+    pausedAt: row.paused_at,
+  });
+  const timeToDetectSeconds = (new Date(row.paused_at).getTime() - new Date(row.first_call_at).getTime()) / 1000;
+
+  return {
+    sessionId: row.id,
+    pausedAt: row.paused_at,
+    costAvoided: Number(costAvoided.toFixed(2)),
+    timeToDetectSeconds: Number(timeToDetectSeconds.toFixed(1)),
+    topFlag: topFlag ? { flag_type: topFlag.flag_type, signal_strength: topFlag.signal_strength } : null,
+    unsupportedClaimsInSession: unsupportedClaimsForSessionStmt.get(row.id).n,
+  };
+}
+
 export const config = { SESSION_BUDGET_USD, HOURLY_BUDGET_USD, MAX_CALLS_PER_SESSION, MODEL };

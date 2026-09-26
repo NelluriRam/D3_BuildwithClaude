@@ -1,6 +1,7 @@
 import React from 'react';
 import { api } from '../api.js';
 import { usePolling } from '../hooks/usePolling.js';
+import { describeFlagType, describePauseReason, describeGroundingConfidence } from '../plainLanguage.js';
 
 function CallRow({ call }) {
   const [open, setOpen] = React.useState(false);
@@ -120,6 +121,9 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
       {session.status_reason && (
         <div className="session-reason">
           <span className="session-meta-label">Reason</span> {session.status_reason}
+          {describePauseReason(session.status_reason) && (
+            <span className="plain-caption">{describePauseReason(session.status_reason)}</span>
+          )}
         </div>
       )}
 
@@ -137,6 +141,7 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
                   signal {f.signal_strength}
                 </span>{' '}
                 {f.detail}
+                <span className="plain-caption">{describeFlagType(f.flag_type)}</span>
               </li>
             ))}
           </ul>
@@ -153,6 +158,7 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
             >
               confidence {grounding.confidence}
             </span>
+            <span className="plain-caption">{describeGroundingConfidence(grounding)}</span>
           </div>
           <pre className="log-block">{grounding.reportText}</pre>
           <ul className="claims-list">

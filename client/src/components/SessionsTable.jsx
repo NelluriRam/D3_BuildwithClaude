@@ -1,6 +1,7 @@
 import React from 'react';
 import { api } from '../api.js';
 import { usePolling } from '../hooks/usePolling.js';
+import { describeFlagTypeShort } from '../plainLanguage.js';
 
 export default function SessionsTable({ selectedId, onSelect }) {
   const { data: sessions, loading } = usePolling(api.sessions, 2000);
@@ -42,12 +43,15 @@ export default function SessionsTable({ selectedId, onSelect }) {
                 </td>
                 <td>
                   {s.top_flag ? (
-                    <span
-                      className="badge badge-signal"
-                      title={`top flag: ${s.top_flag.flag_type} -> signal strength ${s.top_flag.signal_strength}`}
-                    >
-                      {s.top_flag.signal_strength}
-                    </span>
+                    <>
+                      <span
+                        className="badge badge-signal"
+                        title={`top flag: ${s.top_flag.flag_type} -> signal strength ${s.top_flag.signal_strength}`}
+                      >
+                        {s.top_flag.signal_strength}
+                      </span>
+                      <span className="plain-caption-inline">{describeFlagTypeShort(s.top_flag.flag_type)}</span>
+                    </>
                   ) : (
                     <span className="mono text-faint">—</span>
                   )}

@@ -96,6 +96,10 @@ router.get('/metrics/time-to-detect', (req, res) => {
   res.json(gateway.getTimeToDetectStats());
 });
 
+router.get('/metrics/most-recent-catch', (req, res) => {
+  res.json(gateway.getMostRecentCatch());
+});
+
 router.get('/metrics/unsupported-claims', (req, res) => {
   res.json({ unsupportedClaimsToday: gateway.getUnsupportedClaimsCount() });
 });

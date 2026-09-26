@@ -237,6 +237,32 @@ it changes the three loop-detection algorithms themselves:
   the timer already uses. This is a rehearsal/demo-reliability safety net
   only -- live incidents are never manually triggered.
 
+## Clarity/communication layer (UI and copy only)
+
+Purely presentational -- none of it touches detection, scoring, or cost
+logic:
+
+- A dismissible **"why this matters" banner** at the very top of Overview
+  states the real problem in plain language (agents can loop or fan out for
+  hours/days while every call still looks successful and dashboards stay
+  green, and real incidents like this have run up tens of thousands of
+  dollars before anyone noticed).
+- A **"What am I looking at?" toggle** expands a 5-step plain-language walk
+  through the whole story, readable in under 30 seconds.
+- **Plain-English captions** (`client/src/plainLanguage.js`) sit alongside
+  -- never instead of -- every technical flag: loop `signal_strength`,
+  grounding confidence, and budget/loop pause reasons, in both the Sessions
+  table and the session drill-down.
+- **The Overview page is never a meaningless blank state.** The hero panel
+  and live-activity feed prefer real data for the current period, fall back
+  to the most recent real catch from anywhere in this server run
+  (`GET /api/metrics/most-recent-catch`, a plain read over existing tables)
+  if nothing is flagged right now, and only as a last resort -- when this
+  run has never paused a session at all -- show a clearly-labeled static
+  illustrative example (`client/src/data/exampleCatch.js`) that mirrors the
+  real scripted scenario's mechanics. Every one of these states is labeled
+  so it's never mistaken for live data.
+
 ## Deployment
 
 The production build is a single Node process (`npm run build && npm
