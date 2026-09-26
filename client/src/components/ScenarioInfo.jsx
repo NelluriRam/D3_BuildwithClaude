@@ -3,7 +3,18 @@ import { api } from '../api.js';
 import { usePolling } from '../hooks/usePolling.js';
 
 export default function ScenarioInfo() {
-  const { data } = usePolling(api.scenarioStatus, 5000);
+  const { data, refresh } = usePolling(api.scenarioStatus, 5000);
+  const [forcing, setForcing] = React.useState(false);
+
+  async function handleForce() {
+    setForcing(true);
+    try {
+      await api.forceScenario();
+      await refresh();
+    } finally {
+      setForcing(false);
+    }
+  }
 
   return (
     <section className="panel scenario-panel">
@@ -20,6 +31,17 @@ export default function ScenarioInfo() {
         <span className="mono">
           {data?.last_triggered_at ? new Date(data.last_triggered_at).toLocaleTimeString() : 'not yet — runs automatically shortly after startup'}
         </span>
+      </div>
+      <div className="demo-control-row">
+        <button
+          type="button"
+          className="demo-control-link"
+          onClick={handleForce}
+          disabled={forcing}
+          title="Operator/rehearsal safeguard only — fires the same automatic scenario the timer already runs, on demand. Live incidents are never manually triggered."
+        >
+          {forcing ? 'Forcing…' : 'Force scenario now (demo control)'}
+        </button>
       </div>
     </section>
   );

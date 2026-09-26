@@ -219,6 +219,23 @@ it changes the three loop-detection algorithms themselves:
   appear in that session's own logged tool responses, producing a
   grounded/unsupported label per claim and a 0-100 confidence score
   (formula documented in that file). Shown in the session drill-down.
+- **Hallucination-trigger scenario** — `server/src/scenario/hallucinationTrigger.js`,
+  fully isolated from the CrashLoopBackOff loop scenario, primes the same
+  target deployment's `get_deployment_status` response with a realistic
+  "memory reading unavailable" note (no number anywhere in it). This
+  creates a genuine circumstance where a confident closing report is
+  tempted to state a specific memory figure it never actually confirmed --
+  if it does, the existing grounding check catches it with no changes.
+  **The deterministic catching half is verified repeatedly** (see
+  `hallucinationTrigger.test.js`); whether a live Claude call reliably
+  takes the bait was **not** empirically verified in this environment (no
+  working API key) and should be confirmed against a real key before
+  relying on it for a demo.
+- **Force scenario now (demo control)** — a small, de-emphasized link on
+  the Overview page's automated-scenario panel, and `POST
+  /api/scenario/force`, call the exact same `maybeInjectCrashLoopScenario()`
+  the timer already uses. This is a rehearsal/demo-reliability safety net
+  only -- live incidents are never manually triggered.
 
 ## Deployment
 

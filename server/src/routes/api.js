@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sources } from '../sources/index.js';
 import * as gateway from '../gateway/gateway.js';
-import { getScenarioStatus } from '../scenario/crashLoopScenario.js';
+import { getScenarioStatus, maybeInjectCrashLoopScenario } from '../scenario/crashLoopScenario.js';
 
 export const router = Router();
 
@@ -96,6 +96,10 @@ router.get('/metrics/time-to-detect', (req, res) => {
   res.json(gateway.getTimeToDetectStats());
 });
 
+router.get('/metrics/unsupported-claims', (req, res) => {
+  res.json({ unsupportedClaimsToday: gateway.getUnsupportedClaimsCount() });
+});
+
 // --- Audit / compliance export ----------------------------------------------
 
 const CSV_COLUMNS = [
@@ -139,9 +143,17 @@ router.get('/export/audit-log', (req, res) => {
 });
 
 // --- Scripted demo scenario (Phase 4) ---------------------------------------
-// Read-only status only -- the scenario injects itself automatically on a
-// timer (see server/src/index.js); there is no manual trigger endpoint.
+// The scenario still injects itself automatically on a timer (see
+// server/src/index.js) -- that autonomous, no-manual-trigger story is the
+// real design and is unchanged. /scenario/force below is a demo/rehearsal
+// safety net only: it calls the exact same maybeInjectCrashLoopScenario()
+// the timer calls, so there is no duplicated scenario logic and no separate
+// code path to keep in sync.
 
 router.get('/scenario', (req, res) => {
   res.json(getScenarioStatus());
+});
+
+router.post('/scenario/force', (req, res) => {
+  res.json(maybeInjectCrashLoopScenario());
 });

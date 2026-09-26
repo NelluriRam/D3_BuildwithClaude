@@ -19,9 +19,11 @@ const { startAllBackgroundProcesses } = await import('./sources/index.js');
 const { router: apiRouter } = await import('./routes/api.js');
 const { startAutoInvestigation } = await import('./autoInvestigate.js');
 const { maybeInjectCrashLoopScenario } = await import('./scenario/crashLoopScenario.js');
+const { primeAmbiguousMemoryReading } = await import('./scenario/hallucinationTrigger.js');
 const { seedHistoryIfNeeded } = await import('./seedHistory.js');
 
 seedHistoryIfNeeded();
+primeAmbiguousMemoryReading();
 
 const app = express();
 app.use(cors());

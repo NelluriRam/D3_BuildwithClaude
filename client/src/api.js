@@ -25,8 +25,10 @@ export const api = {
   killSession: (id) => req(`/sessions/${id}/kill`, { method: 'POST' }),
   config: () => req('/config'),
   scenarioStatus: () => req('/scenario'),
+  forceScenario: () => req('/scenario/force', { method: 'POST' }),
   activity: (limit = 40) => req(`/activity?limit=${limit}`),
   costSaved: () => req('/metrics/cost-saved'),
   timeToDetect: () => req('/metrics/time-to-detect'),
+  unsupportedClaims: () => req('/metrics/unsupported-claims'),
   exportAuditLogUrl: (sessionId) => `${BASE}/export/audit-log${sessionId ? `?session_id=${sessionId}` : ''}`,
 };

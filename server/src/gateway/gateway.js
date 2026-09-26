@@ -464,4 +464,18 @@ export function getTimeToDetectStats() {
   return { averageSeconds: Number(averageSeconds.toFixed(1)), sampleCount: timing.length };
 }
 
+const unsupportedClaimsTodayStmt = db.prepare(
+  `SELECT COUNT(*) as n FROM claims WHERE grounded = 0 AND created_at >= ?`
+);
+
+/**
+ * Aggregate count of claims groundingCheck.js already marked unsupported
+ * (today, matching the cost-saved period) -- a straight COUNT over data
+ * the grounding check already wrote to the claims table. No new grounding
+ * logic; this just totals an existing column.
+ */
+export function getUnsupportedClaimsCount() {
+  return unsupportedClaimsTodayStmt.get(todayStartIso()).n;
+}
+
 export const config = { SESSION_BUDGET_USD, HOURLY_BUDGET_USD, MAX_CALLS_PER_SESSION, MODEL };

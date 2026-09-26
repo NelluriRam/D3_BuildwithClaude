@@ -457,6 +457,31 @@ button {
   border-top: 1px solid var(--border);
 }
 
+.demo-control-row {
+  margin-top: 10px;
+  text-align: right;
+}
+
+.demo-control-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.demo-control-link:hover {
+  color: var(--text-muted);
+}
+
+.demo-control-link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* --- Live activity feed --------------------------------------------------- */
 
 .activity-feed {
@@ -681,4 +706,106 @@ button {
   color: var(--text-faint);
   margin: 14px 0 0;
   max-width: 720px;
+}
+
+/* --- Hero panel (business impact) ------------------------------------------- */
+
+.hero-panel {
+  border-color: var(--border-strong);
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+  padding: 4px 0 16px;
+}
+
+.hero-stat-value {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.hero-stat-label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.hero-sentence {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  max-width: 880px;
+}
+
+.roi-calculator {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.roi-calculator-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.roi-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.roi-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.roi-input input {
+  font-family: var(--mono);
+  font-size: 13px;
+  width: 110px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.roi-input input:focus {
+  outline: none;
+  border-color: var(--text);
+}
+
+.roi-result {
+  margin-left: auto;
+}
+
+.roi-result-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.roi-result-label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.roi-caption {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin: 10px 0 0;
+  max-width: 780px;
 }
