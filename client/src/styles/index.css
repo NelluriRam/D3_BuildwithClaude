@@ -891,6 +891,47 @@ button {
   margin-bottom: 0;
 }
 
+.overview-toggles {
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+}
+
+/* --- Organization settings --------------------------------------------------- */
+
+.org-settings-panel {
+  margin: 10px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.org-settings-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.org-name-input input {
+  font-family: var(--mono);
+  font-size: 13px;
+  width: 200px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.org-name-input input:focus {
+  outline: none;
+  border-color: var(--text);
+}
+
+.org-settings-save {
+  align-self: flex-end;
+}
+
 /* --- Plain-language captions ------------------------------------------------- */
 
 .plain-caption {

@@ -476,6 +476,34 @@ export function getUnsupportedClaimsCount() {
   return unsupportedClaimsTodayStmt.get(todayStartIso()).n;
 }
 
+const unsupportedClaimsLifetimeStmt = db.prepare(`SELECT COUNT(*) as n FROM claims WHERE grounded = 0`);
+
+/**
+ * Lifetime total of claims groundingCheck.js has ever marked unsupported,
+ * across every agent type (SRE, Remediation, Verification, and any custom
+ * registered agent) -- not scoped to "today" like getUnsupportedClaimsCount
+ * above. Same claims.grounded column, no new grounding logic.
+ */
+export function getUnsupportedClaimsLifetimeCount() {
+  return unsupportedClaimsLifetimeStmt.get().n;
+}
+
+const ticketsHeldOpenStmt = db.prepare(
+  `SELECT COUNT(*) as n FROM sessions WHERE agent_type = 'verification' AND grounding_report_text LIKE 'Verified: false%'`
+);
+
+/**
+ * Count of Verification Agent sessions whose verdict was verified: false --
+ * the fix was not confirmed, so resolve_incident was correctly never
+ * called and the ticket stayed open. verificationAgent.js writes
+ * "Verified: <bool>\nNotes: ..." as grounding_report_text before running
+ * the grounding check, so this matches on that existing text field rather
+ * than adding a new structured column.
+ */
+export function getTicketsHeldOpenCount() {
+  return ticketsHeldOpenStmt.get().n;
+}
+
 const unsupportedClaimsForSessionStmt = db.prepare(
   `SELECT COUNT(*) as n FROM claims WHERE session_id = ? AND grounded = 0`
 );

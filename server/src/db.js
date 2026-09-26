@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS baseline_history (
   is_baseline_illustrative INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
 );
+
+-- Custom agents an operator has registered with LoopSentinel, beyond the
+-- three built-in ones (SRE/Remediation/Verification). Configuration, not
+-- session data -- persists across restarts like baseline_history above.
+CREATE TABLE IF NOT EXISTS registered_agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  purpose TEXT,
+  status TEXT NOT NULL DEFAULT 'registered',
+  created_at TEXT NOT NULL
+);
 `);
 
 export function nowIso() {

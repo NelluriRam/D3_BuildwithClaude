@@ -4,6 +4,7 @@ import Login from './pages/Login.jsx';
 import Overview from './pages/Overview.jsx';
 import Sessions from './pages/Sessions.jsx';
 import Clusters from './pages/Clusters.jsx';
+import Agents from './pages/Agents.jsx';
 import TopBar from './components/TopBar.jsx';
 import { isAuthed } from './auth.js';
 
@@ -52,6 +53,16 @@ export default function App() {
             <RequireAuth>
               <AuthedLayout>
                 <Clusters />
+              </AuthedLayout>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/agents"
+          element={
+            <RequireAuth>
+              <AuthedLayout>
+                <Agents />
               </AuthedLayout>
             </RequireAuth>
           }

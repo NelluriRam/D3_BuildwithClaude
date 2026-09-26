@@ -30,6 +30,10 @@ export const api = {
   costSaved: () => req('/metrics/cost-saved'),
   timeToDetect: () => req('/metrics/time-to-detect'),
   unsupportedClaims: () => req('/metrics/unsupported-claims'),
+  hallucinationResolved: () => req('/metrics/hallucination-resolved'),
   mostRecentCatch: () => req('/metrics/most-recent-catch'),
   exportAuditLogUrl: (sessionId) => `${BASE}/export/audit-log${sessionId ? `?session_id=${sessionId}` : ''}`,
+  agents: () => req('/agents'),
+  registerAgent: (name, purpose) => req('/agents', { method: 'POST', body: JSON.stringify({ name, purpose }) }),
+  simulateAgent: (name) => req(`/agents/${encodeURIComponent(name)}/simulate`, { method: 'POST' }),
 };

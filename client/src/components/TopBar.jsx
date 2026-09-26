@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Overview', end: true },
   { to: '/sessions', label: 'Sessions' },
   { to: '/clusters', label: 'Clusters' },
+  { to: '/agents', label: 'Agents' },
 ];
 
 export default function TopBar() {

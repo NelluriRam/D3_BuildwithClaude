@@ -2,6 +2,7 @@ import React from 'react';
 import { api } from '../api.js';
 import { usePolling } from '../hooks/usePolling.js';
 import Sparkline from './Sparkline.jsx';
+import { useOrgConfig } from '../orgConfig.js';
 
 function formatSeconds(s) {
   if (s === null || s === undefined) return '—';
@@ -14,6 +15,7 @@ function formatSeconds(s) {
 export default function MetricsRow() {
   const { data: costSaved } = usePolling(api.costSaved, 5000);
   const { data: ttd } = usePolling(api.timeToDetect, 5000);
+  const { orgName } = useOrgConfig();
 
   return (
     <section className="panel">
@@ -36,8 +38,8 @@ export default function MetricsRow() {
             }
           >
             {costSaved
-              ? `for context, a typical unprotected day for this workload: ~$${costSaved.costSavedLastPeriod.toFixed(2)}`
-              : 'for context, vs. an illustrative unprotected baseline'}
+              ? `for context, ${orgName}'s typical unprotected day: ~$${costSaved.costSavedLastPeriod.toFixed(2)}`
+              : `for context, vs. an illustrative unprotected baseline`}
           </div>
           {costSaved?.sparkline && (
             <div className="kpi-sparkline">

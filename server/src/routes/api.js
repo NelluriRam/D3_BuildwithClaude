@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { sources } from '../sources/index.js';
 import * as gateway from '../gateway/gateway.js';
 import { getScenarioStatus, maybeInjectCrashLoopScenario } from '../scenario/crashLoopScenario.js';
+import { getAgentRegistry, registerAgent, getRegisteredAgent } from '../gateway/agentRegistry.js';
+import { runSimulatedActivity } from '../agents/customAgentRunner.js';
 
 export const router = Router();
 
@@ -104,6 +106,13 @@ router.get('/metrics/unsupported-claims', (req, res) => {
   res.json({ unsupportedClaimsToday: gateway.getUnsupportedClaimsCount() });
 });
 
+router.get('/metrics/hallucination-resolved', (req, res) => {
+  res.json({
+    unsupportedClaimsLifetime: gateway.getUnsupportedClaimsLifetimeCount(),
+    ticketsHeldOpen: gateway.getTicketsHeldOpenCount(),
+  });
+});
+
 // --- Audit / compliance export ----------------------------------------------
 
 const CSV_COLUMNS = [
@@ -160,4 +169,34 @@ router.get('/scenario', (req, res) => {
 
 router.post('/scenario/force', (req, res) => {
   res.json(maybeInjectCrashLoopScenario());
+});
+
+// --- Agent registry (built-in agents + operator-registered custom agents) --
+// "Simulate activity" for a custom agent runs through the exact same
+// gateway.createSession/callTool/callClaude path as the built-in agents --
+// see server/src/agents/customAgentRunner.js. This is a simulated onboarding
+// demonstration; it does not connect to any real external system.
+
+router.get('/agents', (req, res) => {
+  res.json(getAgentRegistry());
+});
+
+router.post('/agents', (req, res) => {
+  try {
+    const agent = registerAgent({ name: req.body?.name, purpose: req.body?.purpose });
+    res.json(agent);
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+router.post('/agents/:name/simulate', async (req, res) => {
+  const agent = getRegisteredAgent(req.params.name);
+  if (!agent) return res.status(404).json({ error: 'registered agent not found' });
+  try {
+    const result = await runSimulatedActivity({ agentName: agent.name, purpose: agent.purpose });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
 });

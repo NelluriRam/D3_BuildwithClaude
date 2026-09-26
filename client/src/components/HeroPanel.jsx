@@ -2,6 +2,8 @@ import React from 'react';
 import { api } from '../api.js';
 import { usePolling } from '../hooks/usePolling.js';
 import { EXAMPLE_CATCH } from '../data/exampleCatch.js';
+import { useOrgConfig } from '../orgConfig.js';
+import ScaleInputs from './ScaleInputs.jsx';
 
 // Composes already-computed metrics (cost saved, time-to-detect,
 // unsupported claims caught, most-recent-catch) into one narrative strip.
@@ -38,9 +40,7 @@ export default function HeroPanel() {
   const { data: ttd } = usePolling(api.timeToDetect, 5000);
   const { data: claims } = usePolling(api.unsupportedClaims, 5000);
   const { data: mostRecentCatch, loading: catchLoading } = usePolling(api.mostRecentCatch, 5000);
-
-  const [agentsInProd, setAgentsInProd] = React.useState(10);
-  const [sessionsPerAgentPerDay, setSessionsPerAgentPerDay] = React.useState(20);
+  const { orgName, agentsInProd, sessionsPerAgentPerDay } = useOrgConfig();
 
   const loaded = costSaved && ttd && claims;
   const sessionCount = ttd?.sampleCount ?? 0;
@@ -83,7 +83,9 @@ export default function HeroPanel() {
   return (
     <section className="panel hero-panel">
       <div className="panel-header">
-        <h2>Business impact {source === 'live' ? '— last 24 hours' : '— most recent catch'}</h2>
+        <h2>
+          Business impact for {orgName} {source === 'live' ? '— last 24 hours' : '— most recent catch'}
+        </h2>
         <span className="panel-subtle">
           {source === 'live' && 'composed from the metrics below, computed live'}
           {source === 'recent' && `session ${mostRecentCatch.sessionId} · ${timeAgo(mostRecentCatch.pausedAt)}`}
@@ -139,24 +141,7 @@ export default function HeroPanel() {
           <span className="panel-subtle">adjustable assumptions — not a guarantee</span>
         </div>
         <div className="roi-inputs">
-          <label className="roi-input">
-            <span>Agents in production</span>
-            <input
-              type="number"
-              min="0"
-              value={agentsInProd}
-              onChange={(e) => setAgentsInProd(Number(e.target.value))}
-            />
-          </label>
-          <label className="roi-input">
-            <span>Avg. sessions / agent / day</span>
-            <input
-              type="number"
-              min="0"
-              value={sessionsPerAgentPerDay}
-              onChange={(e) => setSessionsPerAgentPerDay(Number(e.target.value))}
-            />
-          </label>
+          <ScaleInputs />
           <div className="roi-result">
             <div className="roi-result-value">
               {projectedAnnualSavings !== null ? `$${formatMoney(projectedAnnualSavings)}` : '—'}
@@ -166,7 +151,7 @@ export default function HeroPanel() {
         </div>
         <p className="roi-caption">
           Illustrative projection only, not a guarantee: (avg cost avoided per flagged session{source !== 'live' ? ', from the most recent catch shown above' : ' measured so far'}, $
-          {avgCostAvoidedPerSession?.toFixed(2)}) × sessions/agent/day × agents × 365 days. Assumes every session
+          {avgCostAvoidedPerSession?.toFixed(2)}) × sessions/agent/day × agents × 365 days. Assumes every {orgName} session
           carries the same average risk as {source === 'live' ? 'this run has measured so far' : 'the example above'} — adjust the inputs to your own assumptions.
         </p>
       </div>
