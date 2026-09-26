@@ -488,17 +488,28 @@ export function getUnsupportedClaimsLifetimeCount() {
   return unsupportedClaimsLifetimeStmt.get().n;
 }
 
+const setVerdictStmt = db.prepare(`UPDATE sessions SET verified=? WHERE id=?`);
+
+/**
+ * Persists a Verification Agent's verdict directly on the session, independent
+ * of whether the grounding check that runs afterward succeeds or not.
+ */
+export function setVerificationVerdict(sessionId, verified) {
+  setVerdictStmt.run(verified ? 1 : 0, sessionId);
+}
+
 const ticketsHeldOpenStmt = db.prepare(
-  `SELECT COUNT(*) as n FROM sessions WHERE agent_type = 'verification' AND grounding_report_text LIKE 'Verified: false%'`
+  `SELECT COUNT(*) as n FROM sessions WHERE agent_type = 'verification' AND verified = 0`
 );
 
 /**
  * Count of Verification Agent sessions whose verdict was verified: false --
  * the fix was not confirmed, so resolve_incident was correctly never
- * called and the ticket stayed open. verificationAgent.js writes
- * "Verified: <bool>\nNotes: ..." as grounding_report_text before running
- * the grounding check, so this matches on that existing text field rather
- * than adding a new structured column.
+ * called and the ticket stayed open. Sourced from the session's own
+ * recorded verdict (set via setVerificationVerdict, independent of the
+ * grounding pipeline) rather than from grounding output -- grounding is a
+ * bonus signal that can fail (API error, budget block, zero claims
+ * extracted) without this metric silently under-counting.
  */
 export function getTicketsHeldOpenCount() {
   return ticketsHeldOpenStmt.get().n;

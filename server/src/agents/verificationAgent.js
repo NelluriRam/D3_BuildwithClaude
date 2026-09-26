@@ -125,6 +125,7 @@ export async function runVerification({ incidentId, remediationSessionId, findin
 
   let grounding = null;
   if (verdict) {
+    gateway.setVerificationVerdict(session.id, verdict.verified);
     const reportText = `Verified: ${verdict.verified}\nNotes: ${verdict.notes}`;
     try {
       grounding = await runGroundingCheck(session.id, reportText);

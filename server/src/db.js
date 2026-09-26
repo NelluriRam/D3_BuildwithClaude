@@ -42,7 +42,8 @@ CREATE TABLE sessions (
   call_count INTEGER NOT NULL DEFAULT 0,
   grounding_confidence REAL,
   grounding_report_text TEXT,
-  grounding_computed_at TEXT
+  grounding_computed_at TEXT,
+  verified INTEGER  -- NULL = no verdict recorded yet, 0 = false, 1 = true
 );
 
 CREATE TABLE calls (
