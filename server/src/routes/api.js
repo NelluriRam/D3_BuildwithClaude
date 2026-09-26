@@ -86,6 +86,58 @@ router.get('/activity', (req, res) => {
   res.json(gateway.getRecentActivity(limit));
 });
 
+// --- Enterprise metrics ------------------------------------------------------
+
+router.get('/metrics/cost-saved', (req, res) => {
+  res.json(gateway.getCostSavedStats());
+});
+
+router.get('/metrics/time-to-detect', (req, res) => {
+  res.json(gateway.getTimeToDetectStats());
+});
+
+// --- Audit / compliance export ----------------------------------------------
+
+const CSV_COLUMNS = [
+  'session_id',
+  'timestamp',
+  'agent',
+  'tool',
+  'arguments',
+  'response_summary',
+  'flags_raised',
+  'signal_strength',
+  'cost_usd',
+];
+
+function csvEscape(value) {
+  const s = value === null || value === undefined ? '' : String(value);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function toCsv(rows) {
+  const header = CSV_COLUMNS.join(',');
+  const lines = rows.map((row) => CSV_COLUMNS.map((col) => csvEscape(row[col])).join(','));
+  return [header, ...lines].join('\r\n');
+}
+
+// Full call-history audit log as CSV, for one session (?session_id=...) or
+// every session (omit the param) -- supports the project's compliance/
+// auditability claims.
+router.get('/export/audit-log', (req, res) => {
+  const sessionId = req.query.session_id || null;
+  if (sessionId && !gateway.getSession(sessionId)) {
+    return res.status(404).json({ error: 'session not found' });
+  }
+  const rows = gateway.getAuditLogRows(sessionId);
+  const csv = toCsv(rows);
+  const filename = sessionId ? `loopsentinel-audit-${sessionId}.csv` : `loopsentinel-audit-all-sessions.csv`;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(csv);
+});
+
 // --- Scripted demo scenario (Phase 4) ---------------------------------------
 // Read-only status only -- the scenario injects itself automatically on a
 // timer (see server/src/index.js); there is no manual trigger endpoint.

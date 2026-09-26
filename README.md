@@ -183,6 +183,43 @@ rate table to estimate session cost for the budget ceiling and dashboard —
 it is a reasonable estimate for demo purposes, not a source of billing
 truth.
 
+## Enterprise metrics (signal strength, cost saved, time-to-detect, audit export)
+
+Built entirely on top of the core gateway above, from data it already logs —
+none of this introduces a new LLM call for scoring or detection, and none of
+it changes the three loop-detection algorithms themselves:
+
+- **Signal strength (0-100)** — `loopDetection.js` attaches a deterministic
+  score to every flag it returns (repetition count vs. threshold +
+  corroboration across detection types + how tightly the matched calls
+  cluster in time; exact formula documented in that file). Shown with a
+  hover tooltip in the Sessions table and session drill-down.
+- **Cost saved** — for every session a loop/budget flag paused,
+  `pricing.js` projects that session's own $/sec rate 30 minutes forward
+  and reports the difference as "cost avoided" (`GET
+  /api/metrics/cost-saved`). The comparison figure it's shown against
+  (`costSavedLastPeriod`) comes from a **30-day synthetic, illustrative
+  "unprotected" baseline** (`server/src/seedHistory.js`, seeded once into
+  a `baseline_history` table that persists across restarts, tagged
+  `is_baseline_illustrative`) — always labeled "vs. illustrative
+  unprotected baseline" in the UI, never presented as real historical
+  billing.
+- **Time to detect** — elapsed time between a session's first tool call
+  and the moment it was flagged/paused, averaged across all flagged
+  sessions (`GET /api/metrics/time-to-detect`).
+- **Audit export** — `GET /api/export/audit-log` (optionally
+  `?session_id=...`) returns the full logged call history as CSV
+  (timestamp, agent, tool, arguments, response summary, flags raised,
+  signal strength, cost), downloadable from the Sessions page and from
+  each session's drill-down.
+- **Report grounding** — after the Remediation Agent's final report, one
+  lightweight Claude call *extracts* the factual claims the report makes
+  (never judges them); `server/src/gateway/groundingCheck.js` then
+  deterministically checks whether each claim's cited values actually
+  appear in that session's own logged tool responses, producing a
+  grounded/unsupported label per claim and a 0-100 confidence score
+  (formula documented in that file). Shown in the session drill-down.
+
 ## Deployment
 
 The production build is a single Node process (`npm run build && npm

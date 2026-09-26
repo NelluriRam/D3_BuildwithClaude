@@ -19,6 +19,9 @@ const { startAllBackgroundProcesses } = await import('./sources/index.js');
 const { router: apiRouter } = await import('./routes/api.js');
 const { startAutoInvestigation } = await import('./autoInvestigate.js');
 const { maybeInjectCrashLoopScenario } = await import('./scenario/crashLoopScenario.js');
+const { seedHistoryIfNeeded } = await import('./seedHistory.js');
+
+seedHistoryIfNeeded();
 
 const app = express();
 app.use(cors());

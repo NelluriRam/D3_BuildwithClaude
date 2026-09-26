@@ -21,6 +21,7 @@ export default function SessionsTable({ selectedId, onSelect }) {
               <th>Agent</th>
               <th>Incident</th>
               <th>Status</th>
+              <th>Signal</th>
               <th>Cost</th>
               <th>Calls</th>
               <th>Created</th>
@@ -39,6 +40,18 @@ export default function SessionsTable({ selectedId, onSelect }) {
                 <td>
                   <span className={`badge badge-session-${s.status}`}>{s.status}</span>
                 </td>
+                <td>
+                  {s.top_flag ? (
+                    <span
+                      className="badge badge-signal"
+                      title={`top flag: ${s.top_flag.flag_type} -> signal strength ${s.top_flag.signal_strength}`}
+                    >
+                      {s.top_flag.signal_strength}
+                    </span>
+                  ) : (
+                    <span className="mono text-faint">—</span>
+                  )}
+                </td>
                 <td className="mono">${s.total_cost_usd.toFixed(4)}</td>
                 <td className="mono">{s.call_count}</td>
                 <td className="mono">{new Date(s.created_at).toLocaleTimeString()}</td>
@@ -46,7 +59,7 @@ export default function SessionsTable({ selectedId, onSelect }) {
             ))}
             {sessions && sessions.length === 0 && (
               <tr>
-                <td colSpan={7} className="empty-state">No sessions yet — investigate an incident or trigger the scenario.</td>
+                <td colSpan={8} className="empty-state">No sessions yet — investigate an incident or trigger the scenario.</td>
               </tr>
             )}
           </tbody>

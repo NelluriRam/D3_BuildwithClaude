@@ -85,7 +85,12 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
     <section className="panel">
       <div className="panel-header">
         <h2>Session detail — {session.id}</h2>
-        <span className="panel-subtle">{session.agent_type} agent</span>
+        <div className="panel-header-actions">
+          <span className="panel-subtle">{session.agent_type} agent</span>
+          <a className="btn btn-small" href={api.exportAuditLogUrl(session.id)} download>
+            Export audit log
+          </a>
+        </div>
       </div>
 
       <div className="session-meta">
@@ -124,7 +129,14 @@ export default function SessionDrilldown({ sessionId, onKilled }) {
           <ul>
             {flags.map((f) => (
               <li key={f.id}>
-                <span className="badge badge-flagged">{f.flag_type}</span> {f.detail}
+                <span className="badge badge-flagged">{f.flag_type}</span>{' '}
+                <span
+                  className="badge badge-signal"
+                  title={f.signal_strength_detail?.formula ?? 'signal strength'}
+                >
+                  signal {f.signal_strength}
+                </span>{' '}
+                {f.detail}
               </li>
             ))}
           </ul>

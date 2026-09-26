@@ -26,4 +26,7 @@ export const api = {
   config: () => req('/config'),
   scenarioStatus: () => req('/scenario'),
   activity: (limit = 40) => req(`/activity?limit=${limit}`),
+  costSaved: () => req('/metrics/cost-saved'),
+  timeToDetect: () => req('/metrics/time-to-detect'),
+  exportAuditLogUrl: (sessionId) => `${BASE}/export/audit-log${sessionId ? `?session_id=${sessionId}` : ''}`,
 };

@@ -4,10 +4,12 @@ import IncidentFeed from '../components/IncidentFeed.jsx';
 import ClusterHealthGrid from '../components/ClusterHealthGrid.jsx';
 import AlertsPanel from '../components/AlertsPanel.jsx';
 import ScenarioInfo from '../components/ScenarioInfo.jsx';
+import MetricsRow from '../components/MetricsRow.jsx';
 
 export default function Overview() {
   return (
     <div className="page-grid">
+      <MetricsRow />
       <ActivityFeed />
       <IncidentFeed />
       <div className="page-grid-two">
