@@ -1,15 +1,36 @@
 import { Router } from 'express';
 import { sources } from '../sources/index.js';
 import * as gateway from '../gateway/gateway.js';
-import { runSreInvestigation } from '../agents/sreAgent.js';
-import { triggerCrashLoopScenario, SCENARIO_META } from '../scenario/crashLoopScenario.js';
+import { getScenarioStatus } from '../scenario/crashLoopScenario.js';
 
 export const router = Router();
 
 // --- Live overview data (Phase 1 sources, read-only) -----------------------
 
 router.get('/incidents', (req, res) => {
-  res.json(sources.servicenow.get_all_incidents());
+  const incidents = sources.servicenow.get_all_incidents();
+  const sessions = gateway.getSessionsOverview();
+
+  // Most recent session per incident, so the feed can show live
+  // investigation status without a manual "Investigate" button.
+  const latestByIncident = new Map();
+  for (const s of sessions) {
+    if (!s.incident_id) continue;
+    const prev = latestByIncident.get(s.incident_id);
+    if (!prev || s.created_at > prev.created_at) latestByIncident.set(s.incident_id, s);
+  }
+
+  res.json(
+    incidents.map((inc) => {
+      const session = latestByIncident.get(inc.id);
+      return {
+        ...inc,
+        investigation: session
+          ? { sessionId: session.id, agentType: session.agent_type, status: session.status }
+          : null,
+      };
+    })
+  );
 });
 
 router.get('/clusters', (req, res) => {
@@ -59,28 +80,16 @@ router.get('/config', (req, res) => {
   res.json(gateway.config);
 });
 
-// --- Agents (Phase 3) --------------------------------------------------------
-
-router.post('/incidents/:id/investigate', async (req, res) => {
-  try {
-    const result = await runSreInvestigation(req.params.id);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: String(err.message || err) });
-  }
+// Live "calling X tool... analyzing..." feed, derived from real logged calls.
+router.get('/activity', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 40, 200);
+  res.json(gateway.getRecentActivity(limit));
 });
 
 // --- Scripted demo scenario (Phase 4) ---------------------------------------
+// Read-only status only -- the scenario injects itself automatically on a
+// timer (see server/src/index.js); there is no manual trigger endpoint.
 
 router.get('/scenario', (req, res) => {
-  res.json(SCENARIO_META);
-});
-
-router.post('/scenario/trigger', async (req, res) => {
-  try {
-    const result = await triggerCrashLoopScenario();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: String(err.message || err) });
-  }
+  res.json(getScenarioStatus());
 });

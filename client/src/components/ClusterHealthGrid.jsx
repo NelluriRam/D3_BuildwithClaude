@@ -9,7 +9,9 @@ export default function ClusterHealthGrid({ onSelectCluster, selectedCluster }) 
     <section className="panel">
       <div className="panel-header">
         <h2>Cluster health</h2>
-        <span className="panel-subtle">Kubernetes (simulated) — 5 clusters × 30 deployments</span>
+        <span className="panel-subtle">
+          Kubernetes (simulated){clusters ? ` — ${clusters.length} clusters × 30 deployments` : ''}
+        </span>
       </div>
       {loading && !clusters ? (
         <p className="empty-state">Loading...</p>

@@ -46,7 +46,7 @@ export const SRE_TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        service: { type: 'string', description: 'Service name, e.g. checkout-service' },
+        service: { type: 'string', description: 'Service name, e.g. patient-portal-service' },
         metric: { type: 'string', enum: ['latency_ms', 'error_rate_pct', 'traffic_rps'] },
       },
       required: ['service', 'metric'],

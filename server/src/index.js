@@ -17,6 +17,8 @@ const express = (await import('express')).default;
 const cors = (await import('cors')).default;
 const { startAllBackgroundProcesses } = await import('./sources/index.js');
 const { router: apiRouter } = await import('./routes/api.js');
+const { startAutoInvestigation } = await import('./autoInvestigate.js');
+const { maybeInjectCrashLoopScenario } = await import('./scenario/crashLoopScenario.js');
 
 const app = express();
 app.use(cors());
@@ -34,6 +36,14 @@ if (fs.existsSync(clientDist)) {
 }
 
 startAllBackgroundProcesses();
+startAutoInvestigation();
+
+// Scripted demo scenario runs entirely on its own -- no manual trigger.
+// Fires once shortly after startup (so a fresh demo doesn't need to wait),
+// then on a recurring interval.
+const SCENARIO_INTERVAL_MS = Number(process.env.SCENARIO_INTERVAL_MS || 180000);
+setTimeout(() => maybeInjectCrashLoopScenario(), 12000);
+setInterval(() => maybeInjectCrashLoopScenario(), SCENARIO_INTERVAL_MS);
 
 const PORT = Number(process.env.PORT || 3001);
 app.listen(PORT, () => {

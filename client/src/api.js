@@ -24,7 +24,6 @@ export const api = {
   sessionDetail: (id) => req(`/sessions/${id}`),
   killSession: (id) => req(`/sessions/${id}/kill`, { method: 'POST' }),
   config: () => req('/config'),
-  scenarioMeta: () => req('/scenario'),
-  triggerScenario: () => req('/scenario/trigger', { method: 'POST' }),
-  investigate: (incidentId) => req(`/incidents/${incidentId}/investigate`, { method: 'POST' }),
+  scenarioStatus: () => req('/scenario'),
+  activity: (limit = 40) => req(`/activity?limit=${limit}`),
 };

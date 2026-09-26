@@ -1,18 +1,35 @@
 // Simulated ServiceNow-style incident queue. In-memory only, background
 // generated. No real ITSM system or ticket data involved.
 
+import { EventEmitter } from 'node:events';
 import { SERVICE_NAMES } from './topology.js';
 import { pick, chance, nowIso, nextId } from '../util.js';
 import { _listServicesWithActiveAlerts } from './monitoring.js';
 
+// Emits 'incident_created' with the new incident record whenever one is
+// created, whether by the background randomizer or by a scripted scenario.
+// Consumed by server/src/autoInvestigate.js to launch the SRE Agent
+// automatically -- this module has no idea agents exist.
+export const events = new EventEmitter();
+
 const TITLE_TEMPLATES = [
   (s) => `Elevated error rate on ${s}`,
   (s) => `${s} failing health checks`,
-  (s) => `Customers reporting slowness on ${s}`,
+  (s) => `Users reporting errors signing in via ${s}`,
   (s) => `${s} pods restarting repeatedly`,
   (s) => `Degraded throughput on ${s}`,
   (s) => `Intermittent 5xx responses from ${s}`,
+  (s) => `Timeouts reported downstream of ${s}`,
 ];
+
+const DESCRIPTION_TEMPLATES = [
+  (s) => `Synthetic monitoring detected an anomaly on ${s}. Auto-filed for triage.`,
+  (s) => `On-call paged after ${s} tripped its error-rate threshold for 3 consecutive checks.`,
+  (s) => `Support escalation: multiple reports of failures traced to ${s}.`,
+  (s) => `Deploy pipeline flagged ${s} as unhealthy post-rollout.`,
+];
+
+const REPORTERS = ['Synthetic monitoring', 'On-call page', 'Support escalation', 'Deploy pipeline'];
 
 const incidents = new Map();
 
@@ -28,6 +45,8 @@ function createIncident(service) {
     id,
     priority: priorityFor(service, hasAlert),
     title: pick(TITLE_TEMPLATES)(service),
+    description: pick(DESCRIPTION_TEMPLATES)(service),
+    reported_by: pick(REPORTERS),
     affected_service: service,
     status: 'open',
     created_at: nowIso(),
@@ -35,6 +54,7 @@ function createIncident(service) {
     resolved_at: null,
   };
   incidents.set(id, rec);
+  events.emit('incident_created', rec);
   return rec;
 }
 
@@ -83,6 +103,8 @@ export function _forceIncident(fields) {
     id,
     priority: 'P1',
     title: 'Scripted scenario incident',
+    description: 'Injected by the LoopSentinel scripted demo scenario.',
+    reported_by: 'Synthetic monitoring',
     affected_service: SERVICE_NAMES[0],
     status: 'open',
     created_at: nowIso(),
@@ -92,6 +114,7 @@ export function _forceIncident(fields) {
     id,
   };
   incidents.set(id, rec);
+  events.emit('incident_created', rec);
   return rec;
 }
 

@@ -11,7 +11,7 @@ import { invokeTool } from '../sources/index.js';
 import { nextId } from '../util.js';
 
 const SESSION_BUDGET_USD = Number(process.env.SESSION_BUDGET_USD || 0.5);
-const HOURLY_BUDGET_USD = Number(process.env.HOURLY_BUDGET_USD || 2.0);
+const HOURLY_BUDGET_USD = Number(process.env.HOURLY_BUDGET_USD || 3.0);
 const MAX_CALLS_PER_SESSION = 40; // defensive hard cap even if detection somehow misses
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
@@ -42,6 +42,13 @@ const stmts = {
   listFlags: db.prepare(`SELECT * FROM flags WHERE session_id = ? ORDER BY id ASC`),
   listSessions: db.prepare(`SELECT * FROM sessions ORDER BY created_at DESC`),
   hourlySpend: db.prepare(`SELECT COALESCE(SUM(cost_usd),0) as total FROM calls WHERE timestamp >= ?`),
+  recentActivity: db.prepare(`
+    SELECT calls.id, calls.session_id, calls.call_type, calls.tool_source, calls.tool_name,
+           calls.args_json, calls.response_json, calls.flagged, calls.timestamp,
+           sessions.agent_type, sessions.incident_id
+    FROM calls JOIN sessions ON calls.session_id = sessions.id
+    ORDER BY calls.id DESC LIMIT ?
+  `),
 };
 
 // --- Session lifecycle --------------------------------------------------
@@ -227,6 +234,38 @@ export function getSessionDetail(sessionId) {
     calls: stmts.listAllCalls.all(sessionId),
     flags: stmts.listFlags.all(sessionId),
   };
+}
+
+function describeActivity(row) {
+  let text;
+  if (row.call_type === 'tool_call') {
+    let args = {};
+    try { args = JSON.parse(row.args_json); } catch { /* ignore */ }
+    const argsStr = Object.entries(args).map(([k, v]) => `${k}=${v}`).join(', ');
+    text = `calling ${row.tool_source}.${row.tool_name}(${argsStr})`;
+  } else {
+    let resp = {};
+    try { resp = JSON.parse(row.response_json); } catch { /* ignore */ }
+    const toolUse = (resp.content || []).find((b) => b.type === 'tool_use');
+    if (toolUse?.name === 'submit_findings') text = 'concluding investigation (submit_findings)';
+    else if (toolUse?.name === 'report_outcome') text = 'reporting remediation outcome';
+    else if (toolUse) text = `deciding next step → calling ${toolUse.name}`;
+    else text = 'analyzing...';
+  }
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    incidentId: row.incident_id,
+    agentType: row.agent_type,
+    flagged: !!row.flagged,
+    timestamp: row.timestamp,
+    text,
+  };
+}
+
+/** Recent tool/Claude calls across all sessions, formatted for a live "what is the agent doing" feed. */
+export function getRecentActivity(limit = 40) {
+  return stmts.recentActivity.all(limit).map(describeActivity).reverse();
 }
 
 export const config = { SESSION_BUDGET_USD, HOURLY_BUDGET_USD, MAX_CALLS_PER_SESSION, MODEL };

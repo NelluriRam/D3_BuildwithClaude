@@ -16,29 +16,43 @@ forever.
 Every one of the five "systems" LoopSentinel monitors — ServiceNow,
 Datadog-style monitoring, Kubernetes, Kafka, and Confluence — is a
 synthetic, in-memory module that generates its own fictional data via a
-background randomizer. **No real production system, real credentials, or
-real company/customer data is read, written, or connected to anywhere in
-this project.** This is a deliberate architecture choice required by the
+background randomizer, modeling a fictional **healthcare platform**
+(patient portal, EHR, appointment scheduling, login/SSO, billing, etc).
+**No real production system, real credentials, real patient data, or real
+company/customer data is read, written, or connected to anywhere in this
+project.** This is a deliberate architecture choice required by the
 contest rules, not a limitation: the only live network call this app ever
 makes is to the Claude API, to power the two agents.
 
-## Demo scenario
+## Everything runs on its own — nothing is manually triggered
 
-A simulated SRE Agent monitors the environment and triages incoming
-incidents by calling the five tool sources. When it finds a root cause, it
-hands off to a Remediation Agent, which proposes and applies a fix (a
-simulated state change only). Every tool call and every Claude API call
-from both agents is routed through the LoopSentinel gateway.
+There is no "Investigate" button and no "Trigger scenario" button anywhere
+in the UI. Instead:
 
-A one-click scripted scenario (**Overview → Trigger scenario**) forces a
-deployment into `CrashLoopBackOff` with logs that repeatedly implicate a
-healthy upstream service — a red herring. The SRE Agent's investigation is
-primed (via the incident brief, not a hidden instruction to the detector)
-to re-verify that upstream service's metrics more than once before
-concluding. LoopSentinel's detector — which knows nothing about this
-scenario — sees the same tool call with the same arguments repeated and
-pauses the session for human review, with the exact repeated call visible
-in the session drill-down.
+- The five sources continuously generate incidents, alerts, metrics, and
+  logs in the background, exactly like a real environment would.
+- The **SRE Agent launches itself automatically** the moment a new P1 or P2
+  incident appears (`server/src/autoInvestigate.js`, listening for a
+  `ServiceNow` `incident_created` event) — triages it through the five tool
+  sources, forms a hypothesis, and either resolves it directly or hands off
+  to the **Remediation Agent**, which applies a fix (a simulated state
+  change only). Every tool call and every Claude API call from both agents
+  is routed through the LoopSentinel gateway.
+- A scripted `CrashLoopBackOff` scenario with a red-herring log trail
+  injects itself automatically on a timer (`SCENARIO_INTERVAL_MS`, default
+  every 3 minutes, plus once ~12s after startup) — it just files a P1
+  incident, and the same automatic investigation pipeline above picks it up
+  like any other incident. The incident brief primes the SRE Agent (not a
+  hidden instruction to the detector) to re-verify one metric more than
+  once before concluding. LoopSentinel's detector — which knows nothing
+  about this scenario — sees the same tool call with the same arguments
+  repeated and pauses the session for human review, with the exact repeated
+  call visible in the session drill-down.
+- The **Overview** page's live activity feed streams "calling
+  `kubernetes.get_pod_logs(...)`", "analyzing...", "concluding
+  investigation" lines in real time — each line is generated straight from
+  a real row LoopSentinel logged for a real tool call or Claude call, not
+  scripted text.
 
 ## Architecture
 
@@ -67,10 +81,15 @@ in the session drill-down.
                     ┌───────────┬─────────────┼─────────────┬───────────┐
                     ▼           ▼             ▼             ▼           ▼
                ServiceNow  Monitoring    Kubernetes       Kafka    Confluence
-               (incidents) (alerts/     (5 clusters ×   (20 topics) (5 static
+               (incidents) (alerts/     (2 clusters ×   (20 topics) (5 static
                             metrics)     30 deployments)             docs)
                all five: in-memory state, background-randomized, synthetic
 ```
+
+`ServiceNow` also emits an `incident_created` event on every new incident
+(background-generated or scripted); `server/src/autoInvestigate.js`
+subscribes to it and launches the SRE Agent automatically — this is what
+removes the need for any manual "Investigate" or "Trigger scenario" button.
 
 ## Tech stack
 
@@ -91,12 +110,13 @@ server/               Express API, gateway, agents, simulated sources
   src/sources/         ServiceNow, Monitoring, Kubernetes, Kafka, Confluence
   src/gateway/         gateway.js, loopDetection.js, pricing.js
   src/agents/          sreAgent.js, remediationAgent.js
-  src/scenario/        crashLoopScenario.js (Phase 4 scripted demo)
+  src/scenario/        crashLoopScenario.js (auto-injecting scripted demo)
+  src/autoInvestigate.js  auto-launches the SRE Agent on every P1/P2 incident
   src/routes/          api.js
   src/db.js            SQLite schema + connection
 client/               React dashboard (Vite)
   src/pages/            Login, Overview, Sessions, Clusters
-  src/components/       TopBar, IncidentFeed, ClusterHealthGrid, ...
+  src/components/       TopBar, ActivityFeed, IncidentFeed, ClusterHealthGrid, ...
 ```
 
 ## Setup and run
@@ -131,7 +151,8 @@ Then open the dashboard (`http://localhost:5173` in dev, or
 | `CLAUDE_MODEL` | Model used by both agents. Defaults to a fast/cheap model. |
 | `PORT` | Port the server (and, in production, the static frontend) listens on. |
 | `SESSION_BUDGET_USD` | Hard per-session cost ceiling enforced by the gateway before every call. |
-| `HOURLY_BUDGET_USD` | Hard rolling-hour cost ceiling across all sessions. |
+| `HOURLY_BUDGET_USD` | Hard rolling-hour cost ceiling across all sessions. Investigations launch automatically, so this needs headroom for continuous background activity. |
+| `SCENARIO_INTERVAL_MS` | How often the scripted CrashLoopBackOff scenario injects itself (default 180000 = 3 min). It also fires once ~12s after startup. |
 
 ## How loop detection works (deterministic, not LLM-judged)
 
