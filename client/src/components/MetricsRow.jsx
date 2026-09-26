@@ -31,13 +31,13 @@ export default function MetricsRow() {
             className="kpi-caption"
             title={
               costSaved
-                ? `costSavedLastPeriod = average of the last 7 illustrative baseline days = $${costSaved.costSavedLastPeriod.toFixed(2)}. percentChange = (${costSaved.costSavedThisPeriod.toFixed(2)} - ${costSaved.costSavedLastPeriod.toFixed(2)}) / ${costSaved.costSavedLastPeriod.toFixed(2)} * 100`
+                ? `costSavedLastPeriod is a reference point, not a comparison: the average of the last 7 illustrative baseline days = $${costSaved.costSavedLastPeriod.toFixed(2)}. It's shown for scale, not as a trend against costSavedThisPeriod.`
                 : ''
             }
           >
-            {costSaved && costSaved.percentChange !== null
-              ? `${costSaved.percentChange > 0 ? '+' : ''}${costSaved.percentChange}% vs. illustrative unprotected baseline`
-              : 'vs. illustrative unprotected baseline'}
+            {costSaved
+              ? `for context, a typical unprotected day for this workload: ~$${costSaved.costSavedLastPeriod.toFixed(2)}`
+              : 'for context, vs. an illustrative unprotected baseline'}
           </div>
           {costSaved?.sparkline && (
             <div className="kpi-sparkline">

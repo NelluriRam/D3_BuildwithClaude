@@ -435,8 +435,6 @@ export function getCostSavedStats() {
     ? last7.reduce((sum, r) => sum + r.unprotected_cost_usd, 0) / last7.length
     : 0;
 
-  const percentChange = costSavedLastPeriod > 0 ? ((costSavedThisPeriod - costSavedLastPeriod) / costSavedLastPeriod) * 100 : null;
-
   // 30-point sparkline: the last 29 illustrative baseline days for visual
   // scale, plus today's real live cost-saved figure as the final point.
   const sparkline = [
@@ -447,7 +445,6 @@ export function getCostSavedStats() {
   return {
     costSavedThisPeriod: Number(costSavedThisPeriod.toFixed(2)),
     costSavedLastPeriod: Number(costSavedLastPeriod.toFixed(2)),
-    percentChange: percentChange === null ? null : Number(percentChange.toFixed(1)),
     projectionWindowMinutes: COST_SAVED_PROJECTION_WINDOW_SECONDS / 60,
     sparkline,
     note: 'costSavedLastPeriod is the average of the last 7 days of an illustrative, synthetic "unprotected" baseline -- not real historical billing.',
