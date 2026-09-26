@@ -323,6 +323,7 @@ function describeActivity(row) {
     const toolUse = (resp.content || []).find((b) => b.type === 'tool_use');
     if (toolUse?.name === 'submit_findings') text = 'concluding investigation (submit_findings)';
     else if (toolUse?.name === 'report_outcome') text = 'reporting remediation outcome';
+    else if (toolUse?.name === 'submit_verification') text = 'recording verification verdict';
     else if (toolUse) text = `deciding next step → calling ${toolUse.name}`;
     else text = 'analyzing...';
   }

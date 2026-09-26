@@ -149,6 +149,38 @@ export const REMEDIATION_TOOLS = [
   },
 ];
 
+// Verification tools available to the Verification Agent -- re-checking
+// the deployment the Remediation Agent touched, plus the one tool that
+// actually closes the ServiceNow ticket (only this agent gets it).
+export const VERIFICATION_TOOLS = [
+  {
+    source: 'kubernetes',
+    name: 'get_deployment_status',
+    description: 'Re-check the current status of the deployment the Remediation Agent acted on.',
+    input_schema: {
+      type: 'object',
+      properties: { cluster_id: { type: 'string' }, deployment_name: { type: 'string' } },
+      required: ['cluster_id', 'deployment_name'],
+    },
+  },
+  {
+    source: 'kubernetes',
+    name: 'get_pod_logs',
+    description: 'Check the most recent pod logs for continued errors after the remediation.',
+    input_schema: {
+      type: 'object',
+      properties: { cluster_id: { type: 'string' }, deployment_name: { type: 'string' } },
+      required: ['cluster_id', 'deployment_name'],
+    },
+  },
+  {
+    source: 'servicenow',
+    name: 'resolve_incident',
+    description: 'Close the incident. Only call this once you have confirmed, via get_deployment_status/get_pod_logs, that the fix actually held.',
+    input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+  },
+];
+
 export function findTool(toolList, name) {
   return toolList.find((t) => t.name === name);
 }

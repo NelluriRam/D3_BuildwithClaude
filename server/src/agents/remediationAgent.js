@@ -7,6 +7,7 @@
 import * as gateway from '../gateway/gateway.js';
 import { REMEDIATION_TOOLS } from '../sources/index.js';
 import { runGroundingCheck } from '../gateway/groundingCheck.js';
+import { runVerification } from './verificationAgent.js';
 
 const MAX_ITERATIONS = 8;
 
@@ -130,5 +131,16 @@ export async function runRemediation({ incidentId, sreSessionId, findings }) {
   }
 
   gateway.completeSession(session.id);
-  return { sessionId: session.id, status: 'completed', report, incidentId, grounding };
+
+  let verification = null;
+  if (report) {
+    verification = await runVerification({
+      incidentId,
+      remediationSessionId: session.id,
+      findings,
+      report,
+    });
+  }
+
+  return { sessionId: session.id, status: 'completed', report, incidentId, grounding, verification };
 }

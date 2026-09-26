@@ -22,7 +22,7 @@ background randomizer, modeling a fictional **healthcare platform**
 company/customer data is read, written, or connected to anywhere in this
 project.** This is a deliberate architecture choice required by the
 contest rules, not a limitation: the only live network call this app ever
-makes is to the Claude API, to power the two agents.
+makes is to the Claude API, to power the three agents.
 
 ## Everything runs on its own — nothing is manually triggered
 
@@ -36,8 +36,12 @@ in the UI. Instead:
   `ServiceNow` `incident_created` event) — triages it through the five tool
   sources, forms a hypothesis, and either resolves it directly or hands off
   to the **Remediation Agent**, which applies a fix (a simulated state
-  change only). Every tool call and every Claude API call from both agents
-  is routed through the LoopSentinel gateway.
+  change only) and hands off in turn to the **Verification Agent**, which
+  independently re-checks the deployment (fresh tool calls, not just
+  trusting the report) and only then closes the ServiceNow ticket — if it
+  can't confirm the fix held, it leaves the incident open and says why.
+  Every tool call and every Claude API call from all three agents is
+  routed through the LoopSentinel gateway.
 - A scripted `CrashLoopBackOff` scenario with a red-herring log trail
   injects itself automatically on a timer (`SCENARIO_INTERVAL_MS`, default
   every 3 minutes, plus once ~12s after startup) — it just files a P1
@@ -62,29 +66,37 @@ in the UI. Instead:
 │  Overview / Sessions / ...   │◄──────►│   /api/*                      │
 └─────────────────────────────┘        └───────────────┬────────────────┘
                                                           │
-                          ┌───────────────────────────────┼───────────────────────────────┐
-                          │                               │                               │
-                 ┌────────▼────────┐            ┌─────────▼─────────┐           ┌─────────▼─────────┐
-                 │  SRE Agent        │            │ Remediation Agent │           │ Scripted scenario  │
-                 │  (Claude tool-use)│──handoff──►│ (Claude tool-use)  │           │ (forces state)      │
-                 └────────┬──────────┘            └─────────┬──────────┘           └─────────┬─────────┘
-                          │  every tool / Claude call                              forces
-                          ▼                                                        state via
-                 ┌─────────────────────────────────────────────────────┐          the same
-                 │            LoopSentinel Gateway                      │◄─────────sources
-                 │  - logs every call to SQLite (node:sqlite)            │
-                 │  - deterministic loop detection (pattern matching)    │
-                 │  - budget ceilings enforced in code                   │
-                 │  - pauses session + marks needs_review on a flag      │
-                 └───────────────────────────┬─────────────────────────┘
-                                              │
-                    ┌───────────┬─────────────┼─────────────┬───────────┐
-                    ▼           ▼             ▼             ▼           ▼
-               ServiceNow  Monitoring    Kubernetes       Kafka    Confluence
-               (incidents) (alerts/     (2 clusters ×   (20 topics) (5 static
-                            metrics)     30 deployments)             docs)
-               all five: in-memory state, background-randomized, synthetic
+              ┌───────────────────┬────────────────────┬─┴──────────────────┐
+              │                   │                     │                    │
+     ┌────────▼────────┐ ┌────────▼─────────┐ ┌─────────▼─────────┐ ┌────────▼──────────┐
+     │  SRE Agent        │ │ Remediation Agent │ │ Verification Agent │ │ Scripted scenario  │
+     │  (Claude tool-use)│─►│ (Claude tool-use)  │─►│ (Claude tool-use)   │ │ (forces state)      │
+     │  handoff────────► │ │  handoff─────────► │ │ closes the ticket   │ │                      │
+     └────────┬──────────┘ └─────────┬──────────┘ └─────────┬───────────┘ └─────────┬───────────┘
+              │  every tool / Claude call, from all three agents                    forces state
+              ▼                                                                     via the same
+     ┌─────────────────────────────────────────────────────────────────┐          sources ◄──────┘
+     │            LoopSentinel Gateway                                  │
+     │  - logs every call to SQLite (node:sqlite)                        │
+     │  - deterministic loop detection (pattern matching)                │
+     │  - budget ceilings enforced in code                               │
+     │  - pauses session + marks needs_review on a flag                  │
+     └───────────────────────────────┬───────────────────────────────────┘
+                                      │
+            ┌───────────┬─────────────┼─────────────┬───────────┐
+            ▼           ▼             ▼             ▼           ▼
+       ServiceNow  Monitoring    Kubernetes       Kafka    Confluence
+       (incidents) (alerts/     (2 clusters ×   (20 topics) (5 static
+                    metrics)     30 deployments)             docs)
+       all five: in-memory state, background-randomized, synthetic
 ```
+
+The pipeline is a straight handoff chain: **SRE Agent -> Remediation Agent ->
+Verification Agent**. Each is its own gateway session (`agent_type`
+`sre`/`remediation`/`verification`), linked via `parent_session_id`. The
+Verification Agent is the only one with the `resolve_incident` tool — it
+independently re-checks the deployment before closing the ticket, rather
+than trusting the Remediation Agent's own report.
 
 `ServiceNow` also emits an `incident_created` event on every new incident
 (background-generated or scripted); `server/src/autoInvestigate.js`
@@ -148,7 +160,7 @@ Then open the dashboard (`http://localhost:5173` in dev, or
 | Variable | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | **Required.** Claude API key, read from the environment — never hardcoded, never committed. |
-| `CLAUDE_MODEL` | Model used by both agents. Defaults to a fast/cheap model. |
+| `CLAUDE_MODEL` | Model used by all three agents. Defaults to a fast/cheap model. |
 | `PORT` | Port the server (and, in production, the static frontend) listens on. |
 | `SESSION_BUDGET_USD` | Hard per-session cost ceiling enforced by the gateway before every call. |
 | `HOURLY_BUDGET_USD` | Hard rolling-hour cost ceiling across all sessions. Investigations launch automatically, so this needs headroom for continuous background activity. |
@@ -212,13 +224,16 @@ it changes the three loop-detection algorithms themselves:
   (timestamp, agent, tool, arguments, response summary, flags raised,
   signal strength, cost), downloadable from the Sessions page and from
   each session's drill-down.
-- **Report grounding** — after the Remediation Agent's final report, one
-  lightweight Claude call *extracts* the factual claims the report makes
-  (never judges them); `server/src/gateway/groundingCheck.js` then
-  deterministically checks whether each claim's cited values actually
-  appear in that session's own logged tool responses, producing a
-  grounded/unsupported label per claim and a 0-100 confidence score
-  (formula documented in that file). Shown in the session drill-down.
+- **Report grounding** — after each agent's own final output (the SRE
+  Agent's `submit_findings`, the Remediation Agent's `report_outcome`, and
+  the Verification Agent's `submit_verification`), one lightweight Claude
+  call *extracts* the factual claims it makes (never judges them);
+  `server/src/gateway/groundingCheck.js` then deterministically checks
+  whether each claim's cited values actually appear in that same session's
+  own logged tool responses, producing a grounded/unsupported label per
+  claim and a 0-100 confidence score (formula documented in that file).
+  All three agents are checked the same way, independently, each against
+  only its own session's evidence. Shown in the session drill-down.
 - **Hallucination-trigger scenario** — `server/src/scenario/hallucinationTrigger.js`,
   fully isolated from the CrashLoopBackOff loop scenario, primes the same
   target deployment's `get_deployment_status` response with a realistic

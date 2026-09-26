@@ -95,6 +95,17 @@ export function get_all_incidents() {
   return [...incidents.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
+/** Agent-callable tool (Verification Agent only): closes an incident once a fix has been confirmed. */
+export function resolve_incident({ id }) {
+  const rec = incidents.get(id);
+  if (!rec) return { error: `incident not found: ${id}` };
+  if (rec.status === 'resolved') return { ok: true, id, already_resolved: true };
+  rec.status = 'resolved';
+  rec.updated_at = nowIso();
+  rec.resolved_at = nowIso();
+  return { ok: true, id, status: rec.status, resolved_at: rec.resolved_at };
+}
+
 // --- Scenario hooks ----------------------------------------------------------
 
 export function _forceIncident(fields) {

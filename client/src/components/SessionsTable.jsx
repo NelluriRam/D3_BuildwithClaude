@@ -10,7 +10,7 @@ export default function SessionsTable({ selectedId, onSelect }) {
     <section className="panel">
       <div className="panel-header">
         <h2>Sessions</h2>
-        <span className="panel-subtle">Every SRE / Remediation agent session</span>
+        <span className="panel-subtle">Every SRE / Remediation / Verification agent session</span>
       </div>
       {loading && !sessions ? (
         <p className="empty-state">Loading...</p>

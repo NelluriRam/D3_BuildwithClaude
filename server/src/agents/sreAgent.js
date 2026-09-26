@@ -7,6 +7,7 @@
 import * as gateway from '../gateway/gateway.js';
 import { SRE_TOOLS } from '../sources/index.js';
 import { runRemediation } from './remediationAgent.js';
+import { runGroundingCheck } from '../gateway/groundingCheck.js';
 
 const MAX_ITERATIONS = 14;
 
@@ -139,9 +140,21 @@ export async function runSreInvestigation(incidentId, { forcedSessionLabel, extr
     };
   }
 
+  // Same evidence-grounding check the Remediation Agent gets, applied to
+  // the SRE Agent's own final output: its hypothesis and evidence are
+  // factual claims too, and can be checked against this session's own
+  // logged tool responses the same way.
+  const reportText = `Hypothesis: ${findings.hypothesis}\nEvidence: ${(findings.evidence ?? []).join('; ')}\nProposed fix: ${findings.proposed_fix}`;
+  let grounding = null;
+  try {
+    grounding = await runGroundingCheck(session.id, reportText);
+  } catch (err) {
+    grounding = { computed: false, reason: `grounding check error: ${String(err.message || err)}` };
+  }
+
   if (findings.decision === 'resolve_directly') {
     gateway.completeSession(session.id);
-    return { sessionId: session.id, status: 'completed', findings, incidentId };
+    return { sessionId: session.id, status: 'completed', findings, incidentId, grounding };
   }
 
   // handoff_to_remediation
@@ -157,6 +170,7 @@ export async function runSreInvestigation(incidentId, { forcedSessionLabel, extr
     status: 'handed_off',
     findings,
     incidentId,
+    grounding,
     remediation,
   };
 }
