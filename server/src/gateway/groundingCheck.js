@@ -10,9 +10,11 @@
 //
 //  (b) Grounding CHECK -- plain deterministic string matching of each
 //      claim's cited_values against that session's own logged tool-call
-//      responses (already in SQLite from the gateway). No LLM is involved
-//      in deciding whether a claim is grounded -- same "not AI judgment"
-//      principle as loopDetection.js.
+//      responses, plus every ancestor session's (its parent chain up the
+//      SRE -> Remediation -> Verification pipeline for this incident) --
+//      already in SQLite from the gateway. No LLM is involved in deciding
+//      whether a claim is grounded -- same "not AI judgment" principle as
+//      loopDetection.js.
 //
 // Scope: only the Remediation Agent's single final report for one session
 // is ever checked here -- not the SRE Agent's reasoning, not intermediate
@@ -64,7 +66,40 @@ async function extractClaims(sessionId, reportText) {
 }
 
 const toolCallsForSession = db.prepare(`SELECT args_json, response_json FROM calls WHERE session_id = ? AND call_type = 'tool_call'`);
-const toolCallsExcludingSession = db.prepare(`SELECT args_json, response_json FROM calls WHERE session_id != ? AND call_type = 'tool_call'`);
+const allToolCalls = db.prepare(`SELECT session_id, args_json, response_json FROM calls WHERE call_type = 'tool_call'`);
+const sessionParent = db.prepare(`SELECT parent_session_id FROM sessions WHERE id = ?`);
+
+// A Remediation/Verification report can accurately cite a fact an earlier
+// agent in the same incident already established (e.g. a number Remediation
+// itself never re-fetched, but that its parent SRE session did) -- that's
+// still grounded evidence, just one session up the chain, not a
+// hallucination. Walk parent_session_id to find this session's own evidence
+// chain. Depth-capped since SRE -> Remediation -> Verification is 3 deep max.
+function ownSessionChain(sessionId) {
+  const ids = [sessionId];
+  let current = sessionId;
+  for (let i = 0; i < 5; i += 1) {
+    const row = sessionParent.get(current);
+    if (!row || !row.parent_session_id) break;
+    ids.push(row.parent_session_id);
+    current = row.parent_session_id;
+  }
+  return ids;
+}
+
+function ownEvidenceRows(sessionId) {
+  return ownSessionChain(sessionId).flatMap((id) => toolCallsForSession.all(id));
+}
+
+// Evidence from every session EXCEPT this one's own ancestor chain -- used
+// only for the cross_session_leakage signal (a report pulling in facts from
+// a different, unrelated incident). An ancestor's legitimate evidence must
+// never count as "leakage from elsewhere", so the whole chain is excluded
+// here, not just the current session.
+function otherEvidenceRows(sessionId) {
+  const chain = new Set(ownSessionChain(sessionId));
+  return allToolCalls.all().filter((r) => !chain.has(r.session_id));
+}
 
 const insertClaim = db.prepare(
   `INSERT INTO claims (session_id, claim_text, cited_values_json, grounded, unmatched_values_json, cross_session_leakage, created_at) VALUES (?,?,?,?,?,?,?)`
@@ -114,7 +149,8 @@ function citedValueAppears(haystack, value) {
 //
 // A claim is "grounded" only if EVERY value it cites appears, as a plain
 // substring match, somewhere in this session's own logged tool-call
-// arguments/responses. One missing value makes the whole claim
+// arguments/responses OR those of an ancestor session in its own chain
+// (see ownSessionChain above). One missing value makes the whole claim
 // "unsupported". For an unsupported claim, if a missing value is found in
 // some OTHER session's tool-call data instead, that claim is additionally
 // marked cross_session_leakage -- evidence the report may have pulled in
@@ -135,7 +171,7 @@ export async function runGroundingCheck(sessionId, reportText) {
 
 /** The deterministic half, split out so it's testable without a live Claude call. */
 export function gradeExtractedClaims(sessionId, reportText, claims) {
-  const ownHaystack = buildHaystack(toolCallsForSession.all(sessionId));
+  const ownHaystack = buildHaystack(ownEvidenceRows(sessionId));
   let otherHaystack = null; // computed lazily, only if a claim actually needs it
 
   let groundedCount = 0;
@@ -150,7 +186,7 @@ export function gradeExtractedClaims(sessionId, reportText, claims) {
 
     let crossSessionLeakage = false;
     if (!grounded) {
-      otherHaystack ??= buildHaystack(toolCallsExcludingSession.all(sessionId));
+      otherHaystack ??= buildHaystack(otherEvidenceRows(sessionId));
       crossSessionLeakage = unmatched.some((v) => citedValueAppears(otherHaystack, v));
       if (crossSessionLeakage) leakageCount += 1;
     }
