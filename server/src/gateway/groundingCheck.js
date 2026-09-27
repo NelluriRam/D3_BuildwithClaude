@@ -37,7 +37,8 @@ const EXTRACT_CLAIMS_TOOL = {
             cited_values: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Specific values this claim cites, verbatim where possible.',
+              description:
+                'The bare data values this claim cites, and nothing else -- exactly as they would appear in a raw API response or log line. One value per array entry. Correct: "4", "Running", "1100", "02:35:11". Wrong: "4/4 replicas Running" (a whole phrase), "0.2% baseline" (a value plus commentary), "readiness probes passing" (paraphrased, not quoted). If the report gives a derived or paraphrased description, cite only the underlying number, status word, or identifier it is based on.',
             },
           },
           required: ['claim', 'cited_values'],
@@ -48,7 +49,7 @@ const EXTRACT_CLAIMS_TOOL = {
   },
 };
 
-const EXTRACTION_SYSTEM_PROMPT = `You extract structured claims from an incident-remediation report. For every discrete factual assertion the report makes, output the claim text and the specific values it cites. You are an extractor, not a fact-checker: do not judge whether any claim is true, do not add claims the report doesn't make, and do not omit a claim because it seems wrong. Call extract_claims exactly once.`;
+const EXTRACTION_SYSTEM_PROMPT = `You extract structured claims from an incident-remediation report. For every discrete factual assertion the report makes, output the claim text and the specific values it cites. You are an extractor, not a fact-checker: do not judge whether any claim is true, do not add claims the report doesn't make, and do not omit a claim because it seems wrong. cited_values must be bare, individually-checkable data values -- never a multi-word phrase, and never a value with descriptive words attached. Call extract_claims exactly once.`;
 
 async function extractClaims(sessionId, reportText) {
   const result = await gateway.callClaude(sessionId, {
@@ -76,10 +77,33 @@ function buildHaystack(rows) {
   return rows.map((r) => `${r.args_json ?? ''} ${r.response_json ?? ''}`).join(' \n ').toLowerCase();
 }
 
+function extractLeadingNumber(value) {
+  const m = String(value).match(/-?\d+(\.\d+)?/);
+  return m ? m[0] : null;
+}
+
+function extractClockTime(value) {
+  const m = String(value).match(/\d{2}:\d{2}:\d{2}/);
+  return m ? m[0] : null;
+}
+
+// Real extraction sometimes cites a value with units or truncated precision
+// attached ("1100ms", "02:35:11Z", "0.2% baseline") that never appears as an
+// exact substring of raw JSON or log lines even though the underlying fact
+// is correct. The exact match is tried first and is what catches a genuine
+// hallucination (a number/time that doesn't appear anywhere in the
+// evidence); only if it fails do we fall back to comparing the bare number
+// or clock-time fragment, so this stays numeric/deterministic rather than
+// approximate or LLM-judged -- no fuzzy matching is added for words.
 function citedValueAppears(haystack, value) {
   const v = String(value ?? '').trim().toLowerCase();
   if (!v) return true; // nothing cited -- trivially not contradicted
-  return haystack.includes(v);
+  if (haystack.includes(v)) return true;
+  const clock = extractClockTime(v);
+  if (clock && haystack.includes(clock)) return true;
+  const num = extractLeadingNumber(v);
+  if (num !== null && haystack.includes(num)) return true;
+  return false;
 }
 
 // --- Grounding confidence (0-100), deterministic ----------------------------
