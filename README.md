@@ -11,18 +11,6 @@ patterns deterministically (not via LLM judgment), enforces budget ceilings
 in code, and pauses for human review instead of failing silently or running
 forever.
 
-## ⚠️ All data is simulated
-
-Every one of the five "systems" LoopSentinel monitors — ServiceNow,
-Datadog-style monitoring, Kubernetes, Kafka, and Confluence — is a
-synthetic, in-memory module that generates its own fictional data via a
-background randomizer, modeling a fictional **healthcare platform**
-(patient portal, EHR, appointment scheduling, login/SSO, billing, etc).
-**No real production system, real credentials, real patient data, or real
-company/customer data is read, written, or connected to anywhere in this
-project.** This is a deliberate architecture choice required by the
-contest rules, not a limitation: the only live network call this app ever
-makes is to the Claude API, to power the three agents.
 
 ## Everything runs on its own — nothing is manually triggered
 
