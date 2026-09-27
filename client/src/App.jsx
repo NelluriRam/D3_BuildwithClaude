@@ -6,6 +6,7 @@ import Sessions from './pages/Sessions.jsx';
 import Clusters from './pages/Clusters.jsx';
 import Agents from './pages/Agents.jsx';
 import TopBar from './components/TopBar.jsx';
+import SessionHeartbeat from './components/SessionHeartbeat.jsx';
 import { isAuthed } from './auth.js';
 
 function RequireAuth({ children }) {
@@ -16,6 +17,7 @@ function RequireAuth({ children }) {
 function AuthedLayout({ children }) {
   return (
     <div className="app-shell">
+      <SessionHeartbeat />
       <TopBar />
       <main className="page">{children}</main>
     </div>

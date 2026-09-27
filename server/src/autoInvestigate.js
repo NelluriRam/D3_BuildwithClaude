@@ -7,6 +7,7 @@
 import { events } from './sources/servicenow.js';
 import { runSreInvestigation } from './agents/sreAgent.js';
 import { takeScenarioInstructions } from './scenario/crashLoopScenario.js';
+import { isAnyoneActive } from './activity.js';
 
 const MAX_CONCURRENT = 2;
 
@@ -20,6 +21,10 @@ function shouldAutoInvestigate(incident) {
 
 function processQueue() {
   while (activeCount < MAX_CONCURRENT && queue.length > 0) {
+    if (!isAnyoneActive()) {
+      queue.length = 0;
+      return;
+    }
     const incident = queue.shift();
     activeCount += 1;
     const extraInstructions = takeScenarioInstructions(incident.id);

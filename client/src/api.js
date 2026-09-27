@@ -36,4 +36,5 @@ export const api = {
   agents: () => req('/agents'),
   registerAgent: (name, purpose) => req('/agents', { method: 'POST', body: JSON.stringify({ name, purpose }) }),
   simulateAgent: (name) => req(`/agents/${encodeURIComponent(name)}/simulate`, { method: 'POST' }),
+  heartbeat: () => req('/session-heartbeat', { method: 'POST' }),
 };

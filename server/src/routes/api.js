@@ -4,6 +4,7 @@ import * as gateway from '../gateway/gateway.js';
 import { getScenarioStatus, maybeInjectCrashLoopScenario } from '../scenario/crashLoopScenario.js';
 import { getAgentRegistry, registerAgent, getRegisteredAgent } from '../gateway/agentRegistry.js';
 import { runSimulatedActivity } from '../agents/customAgentRunner.js';
+import { recordActivity } from '../activity.js';
 
 export const router = Router();
 
@@ -199,4 +200,15 @@ router.post('/agents/:name/simulate', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) });
   }
+});
+
+// --- Session heartbeat -------------------------------------------------------
+// Sent every 5s by SessionHeartbeat.jsx, only while mounted inside the
+// authenticated layout. Gates real Claude API spend (auto-investigation) on
+// an actual signed-in, open dashboard tab -- see server/src/activity.js and
+// autoInvestigate.js's processQueue(). This is the only route that counts as
+// "active"; no blanket middleware is added elsewhere.
+router.post('/session-heartbeat', (req, res) => {
+  recordActivity();
+  res.json({ ok: true });
 });
